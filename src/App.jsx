@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Auth from './services/auth';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -27,6 +28,12 @@ function App() {
 
   return (
     <div className="min-h-screen bg-black text-white selection:bg-green-500 selection:text-black">
+      <Toaster position="top-center" toastOptions={{
+          style: {
+            background: '#333',
+            color: '#fff',
+          },
+        }} />
       {isAuthenticated ? <Dashboard /> : <Login />}
     </div>
   );
