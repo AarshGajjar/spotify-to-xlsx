@@ -47,15 +47,15 @@ const Auth = {
   },
 
   restoreTokens() {
-    const spotifyToken = sessionStorage.getItem('spotify_token');
-    const spotifyExpiry = sessionStorage.getItem('spotify_expiry');
+    const spotifyToken = localStorage.getItem('spotify_token');
+    const spotifyExpiry = localStorage.getItem('spotify_expiry');
 
     if (spotifyToken && spotifyExpiry && Date.now() < parseInt(spotifyExpiry)) {
       this.spotifyAccessToken = spotifyToken;
       this.spotifyTokenExpiry = parseInt(spotifyExpiry);
     }
 
-    const googleToken = sessionStorage.getItem('google_token');
+    const googleToken = localStorage.getItem('google_token');
     if (googleToken) {
       this.googleAccessToken = googleToken;
     }
@@ -70,7 +70,7 @@ const Auth = {
         callback: (response) => {
           if (response.access_token) {
             this.googleAccessToken = response.access_token;
-            sessionStorage.setItem('google_token', this.googleAccessToken);
+            localStorage.setItem('google_token', this.googleAccessToken);
             this.notifyAuthChange();
           }
         },
@@ -87,7 +87,7 @@ const Auth = {
     const state = this.generateRandomString(16);
 
     localStorage.setItem('spotify_code_verifier', codeVerifier);
-    sessionStorage.setItem('spotify_auth_state', state);
+    localStorage.setItem('spotify_auth_state', state);
 
     const params = new URLSearchParams({
       client_id: config.spotifyClientId,
@@ -137,8 +137,8 @@ const Auth = {
     const expiresIn = data.expires_in || 3600;
     this.spotifyTokenExpiry = Date.now() + expiresIn * 1000;
 
-    sessionStorage.setItem('spotify_token', this.spotifyAccessToken);
-    sessionStorage.setItem('spotify_expiry', this.spotifyTokenExpiry);
+    localStorage.setItem('spotify_token', this.spotifyAccessToken);
+    localStorage.setItem('spotify_expiry', this.spotifyTokenExpiry);
     localStorage.removeItem('spotify_code_verifier');
   },
 
@@ -200,7 +200,7 @@ const Auth = {
       this.spotifyAccessToken = null;
       this.spotifyTokenExpiry = null;
       this.googleAccessToken = null;
-      sessionStorage.clear();
+      localStorage.clear();
       this.notifyAuthChange();
   }
 };
