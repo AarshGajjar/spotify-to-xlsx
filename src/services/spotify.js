@@ -28,6 +28,10 @@ const SpotifyAPI = {
     }
 
     if (response.status === 204) return null;
+    
+    // Don't parse JSON if explicitly disabled
+    if (options.parseJson === false) return null;
+    
     return response.json();
   },
 
@@ -81,18 +85,18 @@ const SpotifyAPI = {
     const state = await this.getPlaybackState();
     if (!state) throw new Error('No active device found');
     if (state.is_playing) {
-      await this.request('/me/player/pause', { method: 'PUT' });
+      await this.request('/me/player/pause', { method: 'PUT', parseJson: false });
     } else {
-      await this.request('/me/player/play', { method: 'PUT' });
+      await this.request('/me/player/play', { method: 'PUT', parseJson: false });
     }
   },
 
   async nextTrack() {
-    await this.request('/me/player/next', { method: 'POST' });
+    await this.request('/me/player/next', { method: 'POST', parseJson: false });
   },
 
   async previousTrack() {
-    await this.request('/me/player/previous', { method: 'POST' });
+    await this.request('/me/player/previous', { method: 'POST', parseJson: false });
   },
   
   async playTrack(trackId, contextUri = null) {
@@ -101,7 +105,11 @@ const SpotifyAPI = {
           body.context_uri = contextUri;
           delete body.uris;
       }
-      await this.request('/me/player/play', { method: 'PUT', body: JSON.stringify(body) });
+      await this.request('/me/player/play', { method: 'PUT', body: JSON.stringify(body), parseJson: false });
+  },
+
+  async seek(positionMs) {
+    await this.request(`/me/player/seek?position_ms=${Math.floor(positionMs)}`, { method: 'PUT', parseJson: false });
   },
 
   async removeTrackFromPlaylist(playlistId, trackId) {

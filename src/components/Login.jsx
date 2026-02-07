@@ -25,8 +25,8 @@ const Login = () => {
         className="max-w-md w-full bg-zinc-900 rounded-2xl p-8 border border-zinc-800 shadow-2xl"
       >
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white mb-2">Spotify Rater</h1>
-          <p className="text-zinc-400">Connect your accounts to start rating</p>
+          <h1 className="text-3xl font-bold text-white mb-2">Spotify Dataset Builder</h1>
+          <p className="text-zinc-400">Connect your accounts to start building your dataset</p>
         </div>
 
         <div className="space-y-4">

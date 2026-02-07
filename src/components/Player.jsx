@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Pause, SkipBack, SkipForward, Star } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Star, ExternalLink } from 'lucide-react';
 import SpotifyAPI from '../services/spotify';
 import SheetsAPI from '../services/sheets';
 import config from '../config';
@@ -16,6 +16,7 @@ const Player = ({ mode, onRatingComplete }) => {
   // Playback state
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
   const progressInterval = useRef(null);
 
   useEffect(() => {
@@ -204,6 +205,65 @@ const Player = ({ mode, onRatingComplete }) => {
     } catch (e) {
     }
   };
+
+  const handleSeek = async (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percentage = x / rect.width;
+    const seekTime = percentage * duration;
+    
+    try {
+        await SpotifyAPI.seek(seekTime);
+        setProgress(seekTime);
+    } catch (error) {
+        console.error('Seek failed:', error);
+    }
+  };
+
+  const handleProgressMouseDown = (e) => {
+    setIsDragging(true);
+    handleSeek(e);
+  };
+
+  const handleProgressMouseMove = (e) => {
+    if (isDragging) {
+      handleSeek(e);
+    }
+  };
+
+  const handleProgressMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const openSpotify = () => {
+    if (track) {
+      window.open(`https://open.spotify.com/track/${track.trackId}`, '_blank');
+    } else {
+      window.open('https://open.spotify.com', '_blank');
+    }
+  };
+
+  useEffect(() => {
+    const handleGlobalMouseMove = (e) => {
+      if (isDragging) {
+        handleProgressMouseMove(e);
+      }
+    };
+
+    const handleGlobalMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isDragging, duration]);
   
   const formatTime = (ms) => {
       if (!ms) return "0:00";
@@ -254,67 +314,72 @@ const Player = ({ mode, onRatingComplete }) => {
           </div>
       ) : track ? (
         <div className="relative z-10">
-            <div className="flex flex-col md:flex-row gap-8 items-center md:items-start mb-8">
+            <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start mb-6">
                 <div className="relative group shrink-0">
                     <img 
                         src={track.albumArt || 'https://placehold.co/300x300/222/555?text=No+Art'} 
                         alt="Album Art" 
-                        className="w-48 h-48 md:w-64 md:h-64 rounded-2xl shadow-2xl object-cover"
+                        className="w-32 h-32 md:w-64 md:h-64 rounded-2xl shadow-2xl object-cover"
                     />
                     <button 
                         onClick={handlePlayPause}
                         className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl"
                     >
-                        {isPlaying ? <Pause className="fill-white text-white w-12 h-12" /> : <Play className="fill-white text-white w-12 h-12" />}
+                        {isPlaying ? <Pause className="fill-white text-white w-8 h-8 md:w-12 md:h-12" /> : <Play className="fill-white text-white w-8 h-8 md:w-12 md:h-12" />}
                     </button>
                 </div>
                 
                 <div className="flex-1 text-center md:text-left w-full">
-                    <h2 className="text-2xl md:text-3xl font-bold mb-2 leading-tight truncate">{track.songName}</h2>
-                    <p className="text-zinc-400 text-lg md:text-xl mb-4 truncate">{track.artistName}</p>
+                    <h2 className="text-lg md:text-3xl font-bold mb-1 md:mb-2 leading-tight truncate">{track.songName}</h2>
+                    <p className="text-zinc-400 text-sm md:text-xl mb-3 md:mb-4 truncate">{track.artistName}</p>
                     
                     {existingRating && (
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-900/30 text-green-400 rounded-full text-sm font-medium mb-6">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-900/30 text-green-400 rounded-full text-sm font-medium mb-4">
                             <Star size={14} className="fill-green-400" />
                             Rated: {existingRating}
                         </div>
                     )}
                     
-                    <div className="w-full bg-zinc-800 rounded-full h-1.5 mb-2 overflow-hidden">
+                    <div className="w-full bg-zinc-800 rounded-full h-2 mb-2 overflow-hidden cursor-pointer relative group"
+                         onMouseDown={handleProgressMouseDown}
+                         onMouseMove={handleProgressMouseMove}
+                         onMouseUp={handleProgressMouseUp}>
                         <motion.div 
-                            className="bg-green-500 h-full rounded-full"
+                            className="bg-green-500 h-full rounded-full relative"
                             style={{ width: `${(progress / duration) * 100}%` }}
-                        />
+                        >
+                            <div className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"></div>
+                        </motion.div>
                     </div>
-                    <div className="flex justify-between text-xs text-zinc-500 mb-6 font-mono">
+                    <div className="flex justify-between text-xs text-zinc-500 mb-4 font-mono">
                         <span>{formatTime(progress)}</span>
                         <span>{formatTime(duration)}</span>
                     </div>
 
-                    <div className="flex items-center justify-center md:justify-start gap-4">
+                    <div className="flex items-center justify-center md:justify-start gap-3 mb-4">
                         <button onClick={() => SpotifyAPI.previousTrack()} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors">
-                            <SkipBack size={24} />
+                            <SkipBack size={20} />
                         </button>
-                        <button onClick={handlePlayPause} className="p-3 bg-white text-black rounded-full hover:scale-105 transition-transform">
-                            {isPlaying ? <Pause size={24} className="fill-black" /> : <Play size={24} className="fill-black" />}
+                        <button onClick={handlePlayPause} className="p-2 md:p-3 bg-white text-black rounded-full hover:scale-105 transition-transform">
+                            {isPlaying ? <Pause size={20} className="fill-black" /> : <Play size={20} className="fill-black" />}
                         </button>
                         <button onClick={() => SpotifyAPI.nextTrack()} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors">
-                            <SkipForward size={24} />
+                            <SkipForward size={20} />
                         </button>
                     </div>
                 </div>
             </div>
 
             <div>
-                <p className="text-center md:text-left text-sm text-zinc-500 mb-3 uppercase tracking-wider font-semibold">Rate this track</p>
-                <div className="grid grid-cols-3 md:grid-cols-9 gap-2">
+                <p className="text-center md:text-left text-xs md:text-sm text-zinc-500 mb-2 md:mb-3 uppercase tracking-wider font-semibold">Rate this track</p>
+                <div className="grid grid-cols-3 md:grid-cols-9 gap-2 mb-4">
                     {[1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].map((r) => (
                         <button
                             key={r}
                             onClick={() => handleRating(r)}
                             disabled={isLoading}
                             className={`
-                                py-3 rounded-lg font-bold text-sm transition-all
+                                py-2 md:py-3 rounded-lg font-bold text-xs md:text-sm transition-all
                                 ${existingRating == r 
                                     ? 'bg-green-500 text-black scale-105 ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-900' 
                                     : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white'}
@@ -323,6 +388,16 @@ const Player = ({ mode, onRatingComplete }) => {
                             {r}
                         </button>
                     ))}
+                </div>
+                
+                <div className="flex justify-center">
+                    <button 
+                        onClick={openSpotify}
+                        className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg transition-colors text-sm"
+                    >
+                        <ExternalLink size={16} />
+                        Open in Spotify
+                    </button>
                 </div>
             </div>
         </div>

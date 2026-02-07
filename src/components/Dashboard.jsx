@@ -34,7 +34,7 @@ const Dashboard = () => {
     <div className="max-w-4xl mx-auto p-4 md:p-8 pb-24">
       {/* Header */}
       <header className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold">Spotify Rater</h1>
+        <h1 className="text-2xl font-bold">Spotify Dataset Builder</h1>
         <div className="flex gap-4 items-center">
             <div className="hidden md:flex gap-4 text-sm text-zinc-400">
                 <span>Today: <b className="text-white">{stats.today}</b></span>
