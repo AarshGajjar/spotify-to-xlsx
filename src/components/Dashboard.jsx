@@ -31,9 +31,9 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 md:p-8 pb-24">
+    <div className="h-full flex flex-col w-full max-w-4xl mx-auto p-4 md:p-6 overflow-hidden">
       {/* Header */}
-      <header className="flex justify-between items-center mb-8">
+      <header className="flex justify-between items-center mb-4 md:mb-6 shrink-0">
         <h1 className="text-2xl font-bold">Spotify Dataset Builder</h1>
         <div className="flex gap-4 items-center">
             <div className="hidden md:flex gap-4 text-sm text-zinc-400">
@@ -49,7 +49,7 @@ const Dashboard = () => {
       </header>
 
       {/* Tabs */}
-      <div className="flex p-1 bg-zinc-900 rounded-xl mb-8">
+      <div className="flex p-1 bg-zinc-900 rounded-xl mb-4 md:mb-6 shrink-0">
         <TabButton 
           active={activeTab === 'rate-playlist'} 
           onClick={() => setActiveTab('rate-playlist')}
@@ -71,7 +71,7 @@ const Dashboard = () => {
       </div>
 
       {/* Content */}
-      <div className="min-h-[400px]">
+      <div className="flex-1 min-h-0 relative">
         <AnimatePresence mode="wait">
           {activeTab === 'rate-playlist' && (
             <Player 

@@ -27,11 +27,12 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white selection:bg-green-500 selection:text-black">
+    <div className="h-dvh flex flex-col overflow-hidden bg-black text-white selection:bg-green-500 selection:text-black">
       <Toaster position="top-center" toastOptions={{
           style: {
-            background: '#333',
+            background: '#18181b',
             color: '#fff',
+            border: '1px solid #27272a',
           },
         }} />
       {isAuthenticated ? <Dashboard /> : <Login />}
