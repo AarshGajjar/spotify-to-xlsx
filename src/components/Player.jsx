@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Play, Pause, SkipBack, SkipForward, Star, ExternalLink } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import SpotifyAPI from '../services/spotify';
 import SheetsAPI from '../services/sheets';
 import config from '../config';
@@ -170,15 +171,18 @@ const Player = ({ mode, onRatingComplete }) => {
         if (playlistId) {
             await SpotifyAPI.removeTrackFromPlaylist(playlistId, track.trackId);
         }
+        toast.success(`Rated ${rating} stars! Loading next...`, { icon: '👏' });
         onRatingComplete();
         setTimeout(loadPlaylistTrack, 500);
       } else {
         setExistingRating(rating);
+        toast.success(`Rated ${rating} stars!`);
         onRatingComplete();
         setIsLoading(false);
       }
     } catch (e) {
       setError(e.message);
+      toast.error('Failed to rate track');
       setIsLoading(false);
     }
   };
@@ -237,9 +241,9 @@ const Player = ({ mode, onRatingComplete }) => {
 
   const openSpotify = () => {
     if (track) {
-      window.open(`https://open.spotify.com/track/${track.trackId}`, '_blank');
+      window.location.href = `spotify:track:${track.trackId}`;
     } else {
-      window.open('https://open.spotify.com', '_blank');
+      window.location.href = 'spotify:search';
     }
   };
 
@@ -315,23 +319,23 @@ const Player = ({ mode, onRatingComplete }) => {
       ) : track ? (
         <div className="relative z-10">
             <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start mb-6">
-                <div className="relative group shrink-0">
+                <div className="relative group shrink-0 w-full md:w-auto flex justify-center">
                     <img 
                         src={track.albumArt || 'https://placehold.co/300x300/222/555?text=No+Art'} 
                         alt="Album Art" 
-                        className="w-32 h-32 md:w-64 md:h-64 rounded-2xl shadow-2xl object-cover"
+                        className="w-64 h-64 md:w-72 md:h-72 rounded-2xl shadow-2xl object-cover"
                     />
                     <button 
                         onClick={handlePlayPause}
                         className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl"
                     >
-                        {isPlaying ? <Pause className="fill-white text-white w-8 h-8 md:w-12 md:h-12" /> : <Play className="fill-white text-white w-8 h-8 md:w-12 md:h-12" />}
+                        {isPlaying ? <Pause className="fill-white text-white w-12 h-12" /> : <Play className="fill-white text-white w-12 h-12" />}
                     </button>
                 </div>
                 
                 <div className="flex-1 text-center md:text-left w-full">
-                    <h2 className="text-lg md:text-3xl font-bold mb-1 md:mb-2 leading-tight truncate">{track.songName}</h2>
-                    <p className="text-zinc-400 text-sm md:text-xl mb-3 md:mb-4 truncate">{track.artistName}</p>
+                    <h2 className="text-2xl md:text-4xl font-bold mb-2 leading-tight truncate">{track.songName}</h2>
+                    <p className="text-zinc-400 text-lg md:text-2xl mb-4 truncate">{track.artistName}</p>
                     
                     {existingRating && (
                         <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-900/30 text-green-400 rounded-full text-sm font-medium mb-4">
@@ -379,7 +383,7 @@ const Player = ({ mode, onRatingComplete }) => {
                             onClick={() => handleRating(r)}
                             disabled={isLoading}
                             className={`
-                                py-2 md:py-3 rounded-lg font-bold text-xs md:text-sm transition-all
+                                py-3 md:py-3 rounded-lg font-bold text-sm md:text-sm transition-all
                                 ${existingRating == r 
                                     ? 'bg-green-500 text-black scale-105 ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-900' 
                                     : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white'}
