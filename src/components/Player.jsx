@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Pause, SkipBack, SkipForward, Star, ExternalLink } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Star, ExternalLink, Info, X } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import SpotifyAPI from '../services/spotify';
 import SheetsAPI from '../services/sheets';
@@ -14,6 +14,7 @@ const Player = ({ mode, onRatingComplete }) => {
   const [error, setError] = useState(null);
   const [playlistId, setPlaylistId] = useState(null);
   const [existingRating, setExistingRating] = useState(null);
+  const [showRubric, setShowRubric] = useState(false);
   
   // Playback state
   const [progress, setProgress] = useState(0);
@@ -178,18 +179,34 @@ const Player = ({ mode, onRatingComplete }) => {
         if (playlistId) {
             await SpotifyAPI.removeTrackFromPlaylist(playlistId, track.trackId);
         }
-        toast.success(`Rated ${rating}\nRemoved from ${playlistId}`);
+        toast.success(
+            <div className="flex flex-col gap-1">
+                <span className="font-semibold text-green-400">Rated {rating}</span>
+                <span className="text-zinc-400 text-xs">Removed from {config.playlistName}</span>
+            </div>,
+            { style: { background: '#18181b', border: '1px solid #27272a', color: '#fafafa' } }
+        );
         onRatingComplete();
         await loadPlaylistTrack(true, false);
       } else {
         setExistingRating(rating);
-        toast.success(`Rated ${rating}`);
+        toast.success(
+            <div className="flex flex-col gap-1">
+                <span className="font-semibold text-green-400">Rated {rating}</span>
+            </div>,
+            { style: { background: '#18181b', border: '1px solid #27272a', color: '#fafafa' } }
+        );
         onRatingComplete();
         setIsRating(false);
       }
     } catch (e) {
       setError(e.message);
-      toast.error('Failed to rate track');
+      toast.error(
+          <div className="flex flex-col gap-1">
+              <span className="font-semibold text-red-400">Failed to rate track</span>
+          </div>,
+          { style: { background: '#18181b', border: '1px solid #27272a', color: '#fafafa' } }
+      );
       setIsRating(false);
     }
   };
@@ -378,7 +395,16 @@ const Player = ({ mode, onRatingComplete }) => {
             </div>
 
             <div className="shrink-0 mt-auto pt-2 border-t border-zinc-800/50">
-                <p className="text-center text-xs text-zinc-500 mb-2 uppercase tracking-wider font-semibold">Rate this track</p>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                    <p className="text-center text-xs text-zinc-500 uppercase tracking-wider font-semibold">Rate this track</p>
+                    <button 
+                        onClick={() => setShowRubric(true)}
+                        className="text-zinc-500 hover:text-green-400 transition-colors"
+                        title="View rating guide"
+                    >
+                        <Info size={14} />
+                    </button>
+                </div>
                 <div className="grid grid-cols-3 md:grid-cols-9 gap-2 mb-3">
                     {[1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].map((r) => (
                         <button
@@ -408,6 +434,84 @@ const Player = ({ mode, onRatingComplete }) => {
                     </button>
                 </div>
             </div>
+
+            {/* Rating Rubric Overlay */}
+            {showRubric && (
+                <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 bg-zinc-900/95 backdrop-blur-sm z-50 flex flex-col p-4 overflow-y-auto"
+                >
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">Rating Guide</h3>
+                        <button 
+                            onClick={() => setShowRubric(false)}
+                            className="p-1 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
+                    <div className="space-y-3 text-xs">
+                        <div className="flex gap-3">
+                            <span className="font-bold text-green-400 shrink-0 w-8">5.0</span>
+                            <div>
+                                <span className="font-semibold text-zinc-200">Exceptional</span>
+                                <p className="text-zinc-500 mt-0.5">Strong emotional or personal connection. Highly replayable. Core favorites.</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <span className="font-bold text-green-300 shrink-0 w-8">4.5</span>
+                            <div>
+                                <span className="font-semibold text-zinc-200">Excellent</span>
+                                <p className="text-zinc-500 mt-0.5">Very high quality and highly enjoyable, but missing a deeper personal attachment.</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <span className="font-bold text-blue-400 shrink-0 w-8">4.0</span>
+                            <div>
+                                <span className="font-semibold text-zinc-200">Great</span>
+                                <p className="text-zinc-500 mt-0.5">Consistently enjoyable. Solid additions to playlists. Would play regularly.</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <span className="font-bold text-blue-300 shrink-0 w-8">3.5</span>
+                            <div>
+                                <span className="font-semibold text-zinc-200">Good</span>
+                                <p className="text-zinc-500 mt-0.5">Pleasant and worthwhile, but not essential. Situational listening.</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <span className="font-bold text-zinc-400 shrink-0 w-8">3.0</span>
+                            <div>
+                                <span className="font-semibold text-zinc-200">Neutral</span>
+                                <p className="text-zinc-500 mt-0.5">Neither particularly good nor bad. Indifferent response.</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <span className="font-bold text-orange-400 shrink-0 w-8">2.5</span>
+                            <div>
+                                <span className="font-semibold text-zinc-200">Below Average</span>
+                                <p className="text-zinc-500 mt-0.5">Tolerable occasionally, but rarely chosen intentionally.</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <span className="font-bold text-orange-500 shrink-0 w-8">2.0</span>
+                            <div>
+                                <span className="font-semibold text-zinc-200">Poor</span>
+                                <p className="text-zinc-500 mt-0.5">Usually skipped. Low enjoyment.</p>
+                            </div>
+                        </div>
+                        <div className="flex gap-3">
+                            <span className="font-bold text-red-500 shrink-0 w-8">1.5–1.0</span>
+                            <div>
+                                <span className="font-semibold text-zinc-200">Unpleasant</span>
+                                <p className="text-zinc-500 mt-0.5">Actively dislike. Avoid listening.</p>
+                            </div>
+                        </div>
+                    </div>
+                </motion.div>
+            )}
         </div>
       ) : (
           <div className="flex-1 flex flex-col items-center justify-center text-zinc-500 relative z-10">
