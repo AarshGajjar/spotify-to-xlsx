@@ -178,7 +178,7 @@ const Player = ({ mode, onRatingComplete }) => {
         if (playlistId) {
             await SpotifyAPI.removeTrackFromPlaylist(playlistId, track.trackId);
         }
-        toast.success(`Rated ${rating}`, { icon: '👏' });
+        toast.success(`Rated ${rating}\nRemoved from ${playlistId}`);
         onRatingComplete();
         await loadPlaylistTrack(true, false);
       } else {
