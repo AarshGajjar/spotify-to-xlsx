@@ -106,7 +106,7 @@ const Player = ({ mode, onRatingComplete }) => {
     }
   };
 
-  const loadPlaylistTrack = async (isTransition = false) => {
+  const loadPlaylistTrack = async (isTransition = false, autoPlay = true) => {
     if (!isTransition) setIsLoading(true);
     setError(null);
     try {
@@ -126,8 +126,12 @@ const Player = ({ mode, onRatingComplete }) => {
         setExistingRating(saved ? saved.rating : null);
         setTrack(nextTrack);
         
-        await SpotifyAPI.playTrack(nextTrack.trackId, `spotify:playlist:${pid}`);
-        setIsPlaying(true);
+        if (autoPlay) {
+          await SpotifyAPI.playTrack(nextTrack.trackId, `spotify:playlist:${pid}`);
+          setIsPlaying(true);
+        } else {
+          setIsPlaying(false);
+        }
       }
     } catch (e) {
       setError(e.message);
@@ -176,7 +180,7 @@ const Player = ({ mode, onRatingComplete }) => {
         }
         toast.success(`Rated ${rating}`, { icon: '👏' });
         onRatingComplete();
-        await loadPlaylistTrack(true);
+        await loadPlaylistTrack(true, false);
       } else {
         setExistingRating(rating);
         toast.success(`Rated ${rating}`);

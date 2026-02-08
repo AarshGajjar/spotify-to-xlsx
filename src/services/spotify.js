@@ -5,7 +5,7 @@ const SpotifyAPI = {
   playlistId: null,
 
   async request(endpoint, options = {}) {
-    const token = Auth.getSpotifyToken();
+    const token = await Auth.getSpotifyToken();
     const defaultOptions = {
       headers: {
         Authorization: `Bearer ${token}`,
