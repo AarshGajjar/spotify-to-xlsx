@@ -15,6 +15,7 @@ const Player = ({ mode, onRatingComplete }) => {
   const [playlistId, setPlaylistId] = useState(null);
   const [existingRating, setExistingRating] = useState(null);
   const [showRubric, setShowRubric] = useState(false);
+  const [showControls, setShowControls] = useState(false);
   
   // Playback state
   const [progress, setProgress] = useState(0);
@@ -340,29 +341,34 @@ const Player = ({ mode, onRatingComplete }) => {
       ) : track ? (
         <div className="relative z-10 flex flex-col h-full overflow-hidden">
             <div className="flex-1 min-h-0 flex flex-col gap-3 items-center mb-3">
-                <div className="relative group shrink-0 w-full flex-1 min-h-0 flex justify-center items-center">
+                <div
+                    className="relative group shrink-0 w-full flex-1 min-h-0 flex justify-center items-center cursor-pointer"
+                    onClick={() => setShowControls(!showControls)}
+                >
                     <img 
                         src={track.albumArt || 'https://placehold.co/300x300/222/555?text=No+Art'} 
                         alt="Album Art" 
                         className="w-auto h-full max-h-full object-contain rounded-2xl shadow-2xl"
                     />
                     {/* Playback Controls Overlay */}
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl gap-4 md:gap-6">
+                    <div className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-all duration-300 flex items-center justify-center rounded-2xl gap-4 md:gap-6
+                        ${showControls ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none md:group-hover:opacity-100 md:group-hover:pointer-events-auto'}`}
+                    >
                         <button 
-                            onClick={() => SpotifyAPI.previousTrack()} 
-                            className="p-2 md:p-3 hover:bg-white/20 rounded-full text-white transition-colors"
+                            onClick={(e) => { e.stopPropagation(); SpotifyAPI.previousTrack(); }}
+                            className="p-2 md:p-3 hover:bg-white/20 active:scale-95 rounded-full text-white transition-all"
                         >
                             <SkipBack size={28} className="md:w-8 md:h-8" />
                         </button>
                         <button 
-                            onClick={handlePlayPause} 
-                            className="p-3 md:p-4 bg-white text-black rounded-full hover:scale-105 transition-transform"
+                            onClick={(e) => { e.stopPropagation(); handlePlayPause(); }}
+                            className="p-3 md:p-4 bg-white text-black rounded-full hover:scale-105 active:scale-95 transition-transform shadow-lg"
                         >
                             {isPlaying ? <Pause size={28} className="fill-black md:w-8 md:h-8" /> : <Play size={28} className="fill-black md:w-8 md:h-8" />}
                         </button>
                         <button 
-                            onClick={() => SpotifyAPI.nextTrack()} 
-                            className="p-2 md:p-3 hover:bg-white/20 rounded-full text-white transition-colors"
+                            onClick={(e) => { e.stopPropagation(); SpotifyAPI.nextTrack(); }}
+                            className="p-2 md:p-3 hover:bg-white/20 active:scale-95 rounded-full text-white transition-all"
                         >
                             <SkipForward size={28} className="md:w-8 md:h-8" />
                         </button>
@@ -404,7 +410,7 @@ const Player = ({ mode, onRatingComplete }) => {
                             className="bg-green-500 h-full rounded-full relative"
                             style={{ width: `${(progress / duration) * 100}%` }}
                         >
-                            <div className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"></div>
+                            <div className={`absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full transition-opacity shadow-lg ${showControls ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100'}`}></div>
                         </motion.div>
                     </div>
                     <div className="flex justify-between text-xs text-zinc-500 mb-2 font-mono">
