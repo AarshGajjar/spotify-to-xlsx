@@ -9,6 +9,7 @@ import config from '../config';
 const Player = ({ mode, onRatingComplete }) => {
   const [track, setTrack] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRating, setIsRating] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState(null);
   const [playlistId, setPlaylistId] = useState(null);
@@ -105,8 +106,8 @@ const Player = ({ mode, onRatingComplete }) => {
     }
   };
 
-  const loadPlaylistTrack = async () => {
-    setIsLoading(true);
+  const loadPlaylistTrack = async (isTransition = false) => {
+    if (!isTransition) setIsLoading(true);
     setError(null);
     try {
       let pid = playlistId;
@@ -116,13 +117,14 @@ const Player = ({ mode, onRatingComplete }) => {
       }
       
       const nextTrack = await SpotifyAPI.getFirstTrackFromPlaylist(pid);
+
       if (!nextTrack) {
         setError("Playlist is empty! All songs rated.");
         setTrack(null);
       } else {
-        setTrack(nextTrack);
         const saved = await SheetsAPI.findTrackById(nextTrack.trackId);
         setExistingRating(saved ? saved.rating : null);
+        setTrack(nextTrack);
         
         await SpotifyAPI.playTrack(nextTrack.trackId, `spotify:playlist:${pid}`);
         setIsPlaying(true);
@@ -131,6 +133,7 @@ const Player = ({ mode, onRatingComplete }) => {
       setError(e.message);
     } finally {
       setIsLoading(false);
+      setIsRating(false);
     }
   };
 
@@ -162,8 +165,8 @@ const Player = ({ mode, onRatingComplete }) => {
   };
 
   const handleRating = async (rating) => {
-    if (!track) return;
-    setIsLoading(true);
+    if (!track || isRating) return;
+    setIsRating(true);
     try {
       await SheetsAPI.saveRating(track.trackId, track.artistName, track.songName, rating);
       
@@ -171,19 +174,19 @@ const Player = ({ mode, onRatingComplete }) => {
         if (playlistId) {
             await SpotifyAPI.removeTrackFromPlaylist(playlistId, track.trackId);
         }
-        toast.success(`Rated ${rating} stars! Loading next...`, { icon: '👏' });
+        toast.success(`Rated ${rating}`, { icon: '👏' });
         onRatingComplete();
-        setTimeout(loadPlaylistTrack, 500);
+        await loadPlaylistTrack(true);
       } else {
         setExistingRating(rating);
-        toast.success(`Rated ${rating} stars!`);
+        toast.success(`Rated ${rating}`);
         onRatingComplete();
-        setIsLoading(false);
+        setIsRating(false);
       }
     } catch (e) {
       setError(e.message);
       toast.error('Failed to rate track');
-      setIsLoading(false);
+      setIsRating(false);
     }
   };
 
@@ -240,11 +243,7 @@ const Player = ({ mode, onRatingComplete }) => {
   };
 
   const openSpotify = () => {
-    if (track) {
-      window.location.href = `spotify:track:${track.trackId}`;
-    } else {
-      window.location.href = 'spotify:search';
-    }
+    window.location.href = 'spotify:';
   };
 
   useEffect(() => {
@@ -296,7 +295,7 @@ const Player = ({ mode, onRatingComplete }) => {
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-zinc-900 rounded-3xl p-6 md:p-8 border border-zinc-800 shadow-2xl max-w-2xl mx-auto relative overflow-hidden"
+        className="bg-zinc-900 rounded-3xl p-4 md:p-6 border border-zinc-800 shadow-2xl w-full h-full flex flex-col relative overflow-hidden"
     >
       {track?.albumArt && (
          <div 
@@ -308,22 +307,22 @@ const Player = ({ mode, onRatingComplete }) => {
       {error && (
         <div className="relative z-10 bg-red-500/10 border border-red-500/50 text-red-500 p-4 rounded-xl mb-6 flex items-center gap-2">
             <span className="text-sm">{error}</span>
-            <button onClick={mode === 'playlist' ? loadPlaylistTrack : refreshNowPlaying} className="ml-auto text-xs underline">Retry</button>
+            <button onClick={mode === 'playlist' ? () => loadPlaylistTrack() : refreshNowPlaying} className="ml-auto text-xs underline">Retry</button>
         </div>
       )}
 
       {isLoading && !track ? (
-          <div className="h-64 flex items-center justify-center relative z-10">
+          <div className="flex-1 flex items-center justify-center relative z-10">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
           </div>
       ) : track ? (
-        <div className="relative z-10">
-            <div className="flex flex-col md:flex-row gap-6 md:gap-8 items-center md:items-start mb-6">
-                <div className="relative group shrink-0 w-full md:w-auto flex justify-center">
+        <div className="relative z-10 flex flex-col h-full overflow-hidden">
+            <div className="flex-1 min-h-0 flex flex-col gap-4 items-center mb-4">
+                <div className="relative group shrink-0 w-full flex-1 min-h-0 flex justify-center items-center">
                     <img 
                         src={track.albumArt || 'https://placehold.co/300x300/222/555?text=No+Art'} 
                         alt="Album Art" 
-                        className="w-64 h-64 md:w-72 md:h-72 rounded-2xl shadow-2xl object-cover"
+                        className="w-auto h-full max-h-full object-contain rounded-2xl shadow-2xl"
                     />
                     <button 
                         onClick={handlePlayPause}
@@ -333,13 +332,13 @@ const Player = ({ mode, onRatingComplete }) => {
                     </button>
                 </div>
                 
-                <div className="flex-1 text-center md:text-left w-full">
-                    <h2 className="text-2xl md:text-4xl font-bold mb-2 leading-tight truncate">{track.songName}</h2>
-                    <p className="text-zinc-400 text-lg md:text-2xl mb-4 truncate">{track.artistName}</p>
+                <div className="shrink-0 w-full text-center">
+                    <h2 className="text-xl md:text-3xl font-bold mb-1 leading-tight truncate">{track.songName}</h2>
+                    <p className="text-zinc-400 text-sm md:text-xl mb-2 truncate">{track.artistName}</p>
                     
                     {existingRating && (
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-900/30 text-green-400 rounded-full text-sm font-medium mb-4">
-                            <Star size={14} className="fill-green-400" />
+                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-900/30 text-green-400 rounded-full text-xs font-medium mb-3">
+                            <Star size={12} className="fill-green-400" />
                             Rated: {existingRating}
                         </div>
                     )}
@@ -355,38 +354,39 @@ const Player = ({ mode, onRatingComplete }) => {
                             <div className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"></div>
                         </motion.div>
                     </div>
-                    <div className="flex justify-between text-xs text-zinc-500 mb-4 font-mono">
+                    <div className="flex justify-between text-xs text-zinc-500 mb-3 font-mono">
                         <span>{formatTime(progress)}</span>
                         <span>{formatTime(duration)}</span>
                     </div>
 
-                    <div className="flex items-center justify-center md:justify-start gap-3 mb-4">
+                    <div className="flex items-center justify-center gap-4 mb-2">
                         <button onClick={() => SpotifyAPI.previousTrack()} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors">
-                            <SkipBack size={20} />
+                            <SkipBack size={24} />
                         </button>
-                        <button onClick={handlePlayPause} className="p-2 md:p-3 bg-white text-black rounded-full hover:scale-105 transition-transform">
-                            {isPlaying ? <Pause size={20} className="fill-black" /> : <Play size={20} className="fill-black" />}
+                        <button onClick={handlePlayPause} className="p-3 bg-white text-black rounded-full hover:scale-105 transition-transform">
+                            {isPlaying ? <Pause size={24} className="fill-black" /> : <Play size={24} className="fill-black" />}
                         </button>
                         <button onClick={() => SpotifyAPI.nextTrack()} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors">
-                            <SkipForward size={20} />
+                            <SkipForward size={24} />
                         </button>
                     </div>
                 </div>
             </div>
 
-            <div>
-                <p className="text-center md:text-left text-xs md:text-sm text-zinc-500 mb-2 md:mb-3 uppercase tracking-wider font-semibold">Rate this track</p>
-                <div className="grid grid-cols-3 md:grid-cols-9 gap-2 mb-4">
+            <div className="shrink-0 mt-auto pt-2 border-t border-zinc-800/50">
+                <p className="text-center text-xs text-zinc-500 mb-2 uppercase tracking-wider font-semibold">Rate this track</p>
+                <div className="grid grid-cols-3 md:grid-cols-9 gap-2 mb-3">
                     {[1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].map((r) => (
                         <button
                             key={r}
                             onClick={() => handleRating(r)}
-                            disabled={isLoading}
+                            disabled={isLoading || isRating}
                             className={`
-                                py-3 md:py-3 rounded-lg font-bold text-sm md:text-sm transition-all
+                                py-3 md:py-2 rounded-lg font-bold text-sm transition-all
                                 ${existingRating == r 
                                     ? 'bg-green-500 text-black scale-105 ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-900' 
                                     : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white'}
+                                ${isRating ? 'opacity-50 cursor-not-allowed' : ''}
                             `}
                         >
                             {r}
@@ -397,16 +397,16 @@ const Player = ({ mode, onRatingComplete }) => {
                 <div className="flex justify-center">
                     <button 
                         onClick={openSpotify}
-                        className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg transition-colors text-sm"
+                        className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg transition-colors text-sm w-full md:w-auto justify-center"
                     >
                         <ExternalLink size={16} />
-                        Open in Spotify
+                        Open Spotify
                     </button>
                 </div>
             </div>
         </div>
       ) : (
-          <div className="flex flex-col items-center justify-center h-64 text-zinc-500 relative z-10">
+          <div className="flex-1 flex flex-col items-center justify-center text-zinc-500 relative z-10">
               <div className="mb-4 opacity-50">
                 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/><line x1="2" x2="22" y1="2" y2="22"/></svg>
               </div>
