@@ -99,17 +99,24 @@ const SpotifyAPI = {
     await this.request('/me/player/previous', { method: 'POST', parseJson: false });
   },
   
-  async playTrack(trackId, contextUri = null) {
+  async playTrack(trackId, contextUri = null, offset = null) {
       const body = { uris: [`spotify:track:${trackId}`] };
       if (contextUri) {
           body.context_uri = contextUri;
           delete body.uris;
+          if (offset !== null) {
+              body.offset = { position: offset };
+          }
       }
       await this.request('/me/player/play', { method: 'PUT', body: JSON.stringify(body), parseJson: false });
   },
 
   async seek(positionMs) {
     await this.request(`/me/player/seek?position_ms=${Math.floor(positionMs)}`, { method: 'PUT', parseJson: false });
+  },
+
+  async setShuffle(state) {
+    await this.request(`/me/player/shuffle?state=${state}`, { method: 'PUT', parseJson: false });
   },
 
   async removeTrackFromPlaylist(playlistId, trackId) {

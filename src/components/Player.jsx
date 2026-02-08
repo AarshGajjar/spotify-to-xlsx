@@ -128,7 +128,8 @@ const Player = ({ mode, onRatingComplete }) => {
         setTrack(nextTrack);
         
         if (autoPlay) {
-          await SpotifyAPI.playTrack(nextTrack.trackId, `spotify:playlist:${pid}`);
+          await SpotifyAPI.setShuffle(false);
+          await SpotifyAPI.playTrack(nextTrack.trackId, `spotify:playlist:${pid}`, 0);
           setIsPlaying(true);
         } else {
           setIsPlaying(false);
@@ -405,16 +406,16 @@ const Player = ({ mode, onRatingComplete }) => {
                         <Info size={14} />
                     </button>
                 </div>
-                <div className="grid grid-cols-3 md:grid-cols-9 gap-2 mb-3">
+                <div className="grid grid-cols-9 gap-1.5 md:gap-2 mb-3">
                     {[1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].map((r) => (
                         <button
                             key={r}
                             onClick={() => handleRating(r)}
                             disabled={isLoading || isRating}
                             className={`
-                                py-3 md:py-2 rounded-lg font-bold text-sm transition-all
+                                py-2 px-0.5 rounded-lg font-bold text-xs md:text-sm transition-colors
                                 ${existingRating == r 
-                                    ? 'bg-green-500 text-black scale-105 ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-900' 
+                                    ? 'bg-green-500 text-black shadow-lg shadow-green-500/25' 
                                     : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white'}
                                 ${isRating ? 'opacity-50 cursor-not-allowed' : ''}
                             `}
