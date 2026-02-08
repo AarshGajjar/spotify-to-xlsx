@@ -3,7 +3,9 @@ import config from '../config';
 const Auth = {
   spotifyAccessToken: null,
   spotifyTokenExpiry: null,
+  spotifyRefreshToken: null,
   googleAccessToken: null,
+  googleTokenExpiry: null,
   googleTokenClient: null,
   listeners: [],
 
@@ -49,6 +51,9 @@ const Auth = {
   restoreTokens() {
     const spotifyToken = localStorage.getItem('spotify_token');
     const spotifyExpiry = localStorage.getItem('spotify_expiry');
+    const spotifyRefreshToken = localStorage.getItem('spotify_refresh_token');
+
+    this.spotifyRefreshToken = spotifyRefreshToken;
 
     if (spotifyToken && spotifyExpiry && Date.now() < parseInt(spotifyExpiry)) {
       this.spotifyAccessToken = spotifyToken;
@@ -56,8 +61,14 @@ const Auth = {
     }
 
     const googleToken = localStorage.getItem('google_token');
-    if (googleToken) {
+    const googleExpiry = localStorage.getItem('google_expiry');
+
+    if (googleToken && googleExpiry && Date.now() < parseInt(googleExpiry)) {
       this.googleAccessToken = googleToken;
+      this.googleTokenExpiry = parseInt(googleExpiry);
+    } else {
+      localStorage.removeItem('google_token');
+      localStorage.removeItem('google_expiry');
     }
     this.notifyAuthChange();
   },
@@ -70,7 +81,11 @@ const Auth = {
         callback: (response) => {
           if (response.access_token) {
             this.googleAccessToken = response.access_token;
+            const expiresIn = response.expires_in || 3600;
+            this.googleTokenExpiry = Date.now() + expiresIn * 1000;
+
             localStorage.setItem('google_token', this.googleAccessToken);
+            localStorage.setItem('google_expiry', this.googleTokenExpiry);
             this.notifyAuthChange();
           }
         },
@@ -137,9 +152,53 @@ const Auth = {
     const expiresIn = data.expires_in || 3600;
     this.spotifyTokenExpiry = Date.now() + expiresIn * 1000;
 
+    if (data.refresh_token) {
+        this.spotifyRefreshToken = data.refresh_token;
+        localStorage.setItem('spotify_refresh_token', this.spotifyRefreshToken);
+    }
+
     localStorage.setItem('spotify_token', this.spotifyAccessToken);
     localStorage.setItem('spotify_expiry', this.spotifyTokenExpiry);
     localStorage.removeItem('spotify_code_verifier');
+  },
+
+  async refreshSpotifyToken() {
+    if (!this.spotifyRefreshToken) {
+        throw new Error('No refresh token available');
+    }
+
+    const response = await fetch('https://accounts.spotify.com/api/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: config.spotifyClientId,
+        grant_type: 'refresh_token',
+        refresh_token: this.spotifyRefreshToken,
+      }),
+    });
+
+    if (!response.ok) {
+        this.logout();
+        throw new Error('Failed to refresh Spotify token');
+    }
+
+    const data = await response.json();
+    this.spotifyAccessToken = data.access_token;
+    const expiresIn = data.expires_in || 3600;
+    this.spotifyTokenExpiry = Date.now() + expiresIn * 1000;
+
+    if (data.refresh_token) {
+        this.spotifyRefreshToken = data.refresh_token;
+        localStorage.setItem('spotify_refresh_token', this.spotifyRefreshToken);
+    }
+
+    localStorage.setItem('spotify_token', this.spotifyAccessToken);
+    localStorage.setItem('spotify_expiry', this.spotifyTokenExpiry);
+
+    this.notifyAuthChange();
+    return this.spotifyAccessToken;
   },
 
   loginGoogle() {
@@ -153,16 +212,19 @@ const Auth = {
   },
 
   isSpotifyAuthenticated() {
-    return !!(this.spotifyAccessToken && Date.now() < this.spotifyTokenExpiry);
+    return !!((this.spotifyAccessToken && Date.now() < this.spotifyTokenExpiry) || this.spotifyRefreshToken);
   },
 
   isGoogleAuthenticated() {
-    return !!this.googleAccessToken;
+    return !!(this.googleAccessToken && Date.now() < this.googleTokenExpiry);
   },
 
-  getSpotifyToken() {
-    if (!this.isSpotifyAuthenticated()) {
-      throw new Error('Spotify token expired or not available');
+  async getSpotifyToken() {
+    if (!this.spotifyAccessToken || Date.now() >= this.spotifyTokenExpiry) {
+        if (this.spotifyRefreshToken) {
+            return await this.refreshSpotifyToken();
+        }
+        throw new Error('Spotify token expired or not available');
     }
     return this.spotifyAccessToken;
   },
@@ -199,7 +261,9 @@ const Auth = {
   logout() {
       this.spotifyAccessToken = null;
       this.spotifyTokenExpiry = null;
+      this.spotifyRefreshToken = null;
       this.googleAccessToken = null;
+      this.googleTokenExpiry = null;
       localStorage.clear();
       this.notifyAuthChange();
   }
