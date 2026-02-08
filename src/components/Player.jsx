@@ -339,28 +339,59 @@ const Player = ({ mode, onRatingComplete }) => {
           </div>
       ) : track ? (
         <div className="relative z-10 flex flex-col h-full overflow-hidden">
-            <div className="flex-1 min-h-0 flex flex-col gap-4 items-center mb-4">
+            <div className="flex-1 min-h-0 flex flex-col gap-3 items-center mb-3">
                 <div className="relative group shrink-0 w-full flex-1 min-h-0 flex justify-center items-center">
                     <img 
                         src={track.albumArt || 'https://placehold.co/300x300/222/555?text=No+Art'} 
                         alt="Album Art" 
                         className="w-auto h-full max-h-full object-contain rounded-2xl shadow-2xl"
                     />
-                    <button 
-                        onClick={handlePlayPause}
-                        className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl"
-                    >
-                        {isPlaying ? <Pause className="fill-white text-white w-12 h-12" /> : <Play className="fill-white text-white w-12 h-12" />}
-                    </button>
+                    {/* Playback Controls Overlay */}
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-2xl gap-4 md:gap-6">
+                        <button 
+                            onClick={() => SpotifyAPI.previousTrack()} 
+                            className="p-2 md:p-3 hover:bg-white/20 rounded-full text-white transition-colors"
+                        >
+                            <SkipBack size={28} className="md:w-8 md:h-8" />
+                        </button>
+                        <button 
+                            onClick={handlePlayPause} 
+                            className="p-3 md:p-4 bg-white text-black rounded-full hover:scale-105 transition-transform"
+                        >
+                            {isPlaying ? <Pause size={28} className="fill-black md:w-8 md:h-8" /> : <Play size={28} className="fill-black md:w-8 md:h-8" />}
+                        </button>
+                        <button 
+                            onClick={() => SpotifyAPI.nextTrack()} 
+                            className="p-2 md:p-3 hover:bg-white/20 rounded-full text-white transition-colors"
+                        >
+                            <SkipForward size={28} className="md:w-8 md:h-8" />
+                        </button>
+                    </div>
                 </div>
                 
                 <div className="shrink-0 w-full text-center">
-                    <h2 className="text-xl md:text-3xl font-bold mb-1 leading-tight truncate">{track.songName}</h2>
+                    <h2 className="text-lg md:text-3xl font-bold mb-1 leading-tight truncate">{track.songName}</h2>
                     <p className="text-zinc-400 text-sm md:text-xl mb-2 truncate">{track.artistName}</p>
                     
                     {existingRating && (
-                        <div className="inline-flex items-center gap-2 px-3 py-1 bg-green-900/30 text-green-400 rounded-full text-xs font-medium mb-3">
-                            <Star size={12} className="fill-green-400" />
+                        <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium mb-2 ${
+                            existingRating >= 4.5 ? 'bg-green-900/30 text-green-400' :
+                            existingRating >= 4.0 ? 'bg-blue-900/30 text-blue-400' :
+                            existingRating >= 3.5 ? 'bg-blue-900/20 text-blue-300' :
+                            existingRating >= 3.0 ? 'bg-zinc-800 text-zinc-400' :
+                            existingRating >= 2.5 ? 'bg-orange-900/30 text-orange-400' :
+                            existingRating >= 2.0 ? 'bg-orange-900/40 text-orange-500' :
+                            'bg-red-950/30 text-red-500'
+                        }`}>
+                            <Star size={12} className={`${
+                                existingRating >= 4.5 ? 'fill-green-400' :
+                                existingRating >= 4.0 ? 'fill-blue-400' :
+                                existingRating >= 3.5 ? 'fill-blue-300' :
+                                existingRating >= 3.0 ? 'fill-zinc-400' :
+                                existingRating >= 2.5 ? 'fill-orange-400' :
+                                existingRating >= 2.0 ? 'fill-orange-500' :
+                                'fill-red-500'
+                            }`} />
                             Rated: {existingRating}
                         </div>
                     )}
@@ -376,21 +407,9 @@ const Player = ({ mode, onRatingComplete }) => {
                             <div className="absolute right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"></div>
                         </motion.div>
                     </div>
-                    <div className="flex justify-between text-xs text-zinc-500 mb-3 font-mono">
+                    <div className="flex justify-between text-xs text-zinc-500 mb-2 font-mono">
                         <span>{formatTime(progress)}</span>
                         <span>{formatTime(duration)}</span>
-                    </div>
-
-                    <div className="flex items-center justify-center gap-4 mb-2">
-                        <button onClick={() => SpotifyAPI.previousTrack()} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors">
-                            <SkipBack size={24} />
-                        </button>
-                        <button onClick={handlePlayPause} className="p-3 bg-white text-black rounded-full hover:scale-105 transition-transform">
-                            {isPlaying ? <Pause size={24} className="fill-black" /> : <Play size={24} className="fill-black" />}
-                        </button>
-                        <button onClick={() => SpotifyAPI.nextTrack()} className="p-2 hover:bg-zinc-800 rounded-full text-zinc-400 hover:text-white transition-colors">
-                            <SkipForward size={24} />
-                        </button>
                     </div>
                 </div>
             </div>
@@ -406,23 +425,36 @@ const Player = ({ mode, onRatingComplete }) => {
                         <Info size={14} />
                     </button>
                 </div>
-                <div className="grid grid-cols-9 gap-1.5 md:gap-2 mb-3">
-                    {[1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].map((r) => (
-                        <button
-                            key={r}
-                            onClick={() => handleRating(r)}
-                            disabled={isLoading || isRating}
-                            className={`
-                                py-2 px-0.5 rounded-lg font-bold text-xs md:text-sm transition-colors
-                                ${existingRating == r 
-                                    ? 'bg-green-500 text-black shadow-lg shadow-green-500/25' 
-                                    : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white'}
-                                ${isRating ? 'opacity-50 cursor-not-allowed' : ''}
-                            `}
-                        >
-                            {r}
-                        </button>
-                    ))}
+                <div className="grid grid-cols-3 sm:grid-cols-9 gap-1.5 md:gap-2 mb-3">
+                    {[1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5].map((r) => {
+                        const getSelectedColor = (rating) => {
+                            if (rating === 5) return 'bg-green-500 text-black shadow-lg shadow-green-500/25';
+                            if (rating === 4.5) return 'bg-green-400 text-black shadow-lg shadow-green-400/25';
+                            if (rating === 4) return 'bg-blue-500 text-white shadow-lg shadow-blue-500/25';
+                            if (rating === 3.5) return 'bg-blue-400 text-black shadow-lg shadow-blue-400/25';
+                            if (rating === 3) return 'bg-zinc-500 text-white shadow-lg shadow-zinc-500/25';
+                            if (rating === 2.5) return 'bg-orange-500 text-white shadow-lg shadow-orange-500/25';
+                            if (rating === 2) return 'bg-orange-600 text-white shadow-lg shadow-orange-600/25';
+                            return 'bg-red-600 text-white shadow-lg shadow-red-600/25';
+                        };
+                        
+                        return (
+                            <button
+                                key={r}
+                                onClick={() => handleRating(r)}
+                                disabled={isLoading || isRating}
+                                className={`
+                                    py-2 px-0.5 rounded-lg font-bold text-xs md:text-sm transition-colors
+                                    ${existingRating == r 
+                                        ? getSelectedColor(r)
+                                        : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white'}
+                                    ${isRating ? 'opacity-50 cursor-not-allowed' : ''}
+                                `}
+                            >
+                                {r}
+                            </button>
+                        );
+                    })}
                 </div>
                 
                 <div className="flex justify-center">
