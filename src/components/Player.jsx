@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Pause, SkipBack, SkipForward, Star, ExternalLink, Info, X, Trash2 } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Star, ExternalLink, Info, X, Trash2, Table } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import SpotifyAPI from '../services/spotify';
 import SheetsAPI from '../services/sheets';
+import LastFM from '../services/lastfm';
 import config from '../config';
 
 const Player = ({ mode, onRatingComplete }) => {
@@ -18,15 +19,22 @@ const Player = ({ mode, onRatingComplete }) => {
   const [showRubric, setShowRubric] = useState(false);
   const [showControls, setShowControls] = useState(false);
   const [isRemoved, setIsRemoved] = useState(false);
+  const [genres, setGenres] = useState([]);
   
   // Playback state
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const progressInterval = useRef(null);
+  const isTransitioningRef = useRef(false);
 
   useEffect(() => {
       setIsRemoved(false);
+      if (track?.artistName && track?.songName) {
+        LastFM.getTrackInfo(track.artistName, track.songName).then(setGenres);
+      } else {
+        setGenres([]);
+      }
   }, [track?.trackId]);
 
   useEffect(() => {
@@ -63,7 +71,7 @@ const Player = ({ mode, onRatingComplete }) => {
                   const currentPid = playlistIdRef.current;
                   const isPlayingPlaylist = state?.context?.uri?.includes(currentPid);
 
-                  if (currentPid && state?.is_playing && (!state?.context || !isPlayingPlaylist)) {
+                  if (!isTransitioningRef.current && currentPid && state?.is_playing && (!state?.context || !isPlayingPlaylist)) {
                       setTrack(null);
                       return;
                   }
@@ -131,6 +139,7 @@ const Player = ({ mode, onRatingComplete }) => {
 
   const loadPlaylistTrack = async (isTransition = false, autoPlay = true) => {
     if (!isTransition) setIsLoading(true);
+    isTransitioningRef.current = true;
     setError(null);
     try {
       let pid = playlistId;
@@ -153,12 +162,19 @@ const Player = ({ mode, onRatingComplete }) => {
           await SpotifyAPI.setShuffle(false);
           await SpotifyAPI.playTrack(nextTrack.trackId, `spotify:playlist:${pid}`, 0);
           setIsPlaying(true);
+
+          // Allow some time for Spotify state to update before polling checks take over
+          setTimeout(() => {
+              isTransitioningRef.current = false;
+          }, 3000);
         } else {
           setIsPlaying(false);
+          isTransitioningRef.current = false;
         }
       }
     } catch (e) {
       setError(e.message);
+      isTransitioningRef.current = false;
     } finally {
       setIsLoading(false);
       setIsRating(false);
@@ -305,6 +321,10 @@ const Player = ({ mode, onRatingComplete }) => {
     window.location.href = 'spotify:';
   };
 
+  const openSheet = () => {
+    window.open(`https://docs.google.com/spreadsheets/d/${config.sheetId}`, '_blank');
+  };
+
   useEffect(() => {
     const handleGlobalMouseMove = (e) => {
       if (isDragging) {
@@ -387,24 +407,35 @@ const Player = ({ mode, onRatingComplete }) => {
                         className="w-auto h-full max-h-full object-contain rounded-2xl shadow-2xl"
                     />
 
-                    {/* Remove Button for Already Rated in Playlist Mode */}
-                    {mode === 'playlist' && existingRating && !isRemoved && (
-                         <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemoveFromPlaylist();
-                            }}
-                            className="absolute top-2 right-2 p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-full transition-all z-20 shadow-lg opacity-0 group-hover:opacity-100 focus:opacity-100"
-                            title="Remove from playlist"
-                        >
-                            <Trash2 size={16} />
-                        </button>
-                    )}
-
                     {/* Playback Controls Overlay */}
-                    <div className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-all duration-300 flex items-center justify-center rounded-2xl gap-4 md:gap-6
+                    <div className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-all duration-300 flex items-center justify-center rounded-2xl gap-4 md:gap-6 z-20
                         ${showControls ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none md:group-hover:opacity-100 md:group-hover:pointer-events-auto'}`}
                     >
+                        {/* Genres */}
+                        {genres.length > 0 && (
+                            <div className="absolute top-4 left-0 right-0 flex justify-center gap-2 px-8 flex-wrap pointer-events-none">
+                                {genres.map((g, i) => (
+                                    <span key={i} className="text-[10px] uppercase tracking-wider bg-black/40 backdrop-blur-md text-white/90 px-2 py-1 rounded-full border border-white/10">
+                                        {g}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Remove Button for Already Rated in Playlist Mode (Inside Overlay) */}
+                        {mode === 'playlist' && existingRating && !isRemoved && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemoveFromPlaylist();
+                                }}
+                                className="absolute top-2 right-2 p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-full transition-all shadow-lg pointer-events-auto"
+                                title="Remove from playlist"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        )}
+
                         <button 
                             onClick={(e) => { e.stopPropagation(); SpotifyAPI.previousTrack(); }}
                             className="p-2 md:p-3 hover:bg-white/20 active:scale-95 rounded-full text-white transition-all"
@@ -514,13 +545,20 @@ const Player = ({ mode, onRatingComplete }) => {
                     })}
                 </div>
                 
-                <div className="flex justify-center">
+                <div className="flex justify-center gap-3 w-full md:w-auto">
                     <button 
                         onClick={openSpotify}
-                        className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg transition-colors text-sm w-full md:w-auto justify-center"
+                        className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg transition-colors text-sm flex-1 md:flex-none justify-center"
                     >
                         <ExternalLink size={16} />
                         Open Spotify
+                    </button>
+                    <button
+                        onClick={openSheet}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-900/20 hover:bg-green-900/30 text-green-400 hover:text-green-300 border border-green-900/50 rounded-lg transition-colors text-sm flex-1 md:flex-none justify-center"
+                    >
+                        <Table size={16} />
+                        Open Sheet
                     </button>
                 </div>
             </div>

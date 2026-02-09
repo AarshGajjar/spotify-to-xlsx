@@ -3,6 +3,7 @@ const config = {
   googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID,
   sheetId: import.meta.env.VITE_SHEET_ID,
   playlistName: import.meta.env.VITE_PLAYLIST_NAME,
+  lastFmApiKey: import.meta.env.VITE_LASTFM_API_KEY,
   redirectUri: window.location.origin + window.location.pathname.replace(/\/$/, '') + '/',
   spotifyScopes: [
     'playlist-read-private',
