@@ -7,6 +7,7 @@ const Auth = {
   googleAccessToken: null,
   googleTokenExpiry: null,
   googleTokenClient: null,
+  googleTokenPromise: null,
   listeners: [],
 
   init() {
@@ -17,10 +18,7 @@ const Auth = {
   
   subscribe(callback) {
       this.listeners.push(callback);
-      // Immediately invoke with current state
       callback(this.getAuthState());
-      
-      // Return unsubscribe function
       return () => {
           this.listeners = this.listeners.filter(l => l !== callback);
       };
@@ -87,11 +85,21 @@ const Auth = {
             localStorage.setItem('google_token', this.googleAccessToken);
             localStorage.setItem('google_expiry', this.googleTokenExpiry);
             this.notifyAuthChange();
+
+            if (this.googleTokenResolve) {
+                this.googleTokenResolve(this.googleAccessToken);
+                this.googleTokenResolve = null;
+                this.googleTokenPromise = null;
+            }
+          } else if (this.googleTokenReject) {
+             this.googleTokenReject(new Error('Failed to get Google token'));
+             this.googleTokenResolve = null;
+             this.googleTokenReject = null;
+             this.googleTokenPromise = null;
           }
         },
       });
     } else {
-      // Retry if script hasn't loaded
       setTimeout(() => this.initGoogleAuth(), 100);
     }
   },
@@ -203,8 +211,16 @@ const Auth = {
 
   loginGoogle() {
     if (this.googleTokenClient) {
-      this.googleTokenClient.requestAccessToken();
+      if (this.googleTokenPromise) return this.googleTokenPromise;
+
+      this.googleTokenPromise = new Promise((resolve, reject) => {
+          this.googleTokenResolve = resolve;
+          this.googleTokenReject = reject;
+          this.googleTokenClient.requestAccessToken();
+      });
+      return this.googleTokenPromise;
     }
+    return Promise.reject(new Error('Google client not initialized'));
   },
 
   isAuthenticated() {
@@ -229,9 +245,13 @@ const Auth = {
     return this.spotifyAccessToken;
   },
 
-  getGoogleToken() {
-    if (!this.isGoogleAuthenticated()) {
-      throw new Error('Google token not available');
+  async getGoogleToken() {
+    if (!this.googleAccessToken || Date.now() >= this.googleTokenExpiry) {
+      // Try to refresh (login again)
+      if (this.googleTokenClient) {
+          return await this.loginGoogle();
+      }
+      throw new Error('Google token expired or not available');
     }
     return this.googleAccessToken;
   },

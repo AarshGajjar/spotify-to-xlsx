@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Pause, SkipBack, SkipForward, Star, ExternalLink, Info, X } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Star, ExternalLink, Info, X, Trash2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import SpotifyAPI from '../services/spotify';
 import SheetsAPI from '../services/sheets';
@@ -16,12 +16,17 @@ const Player = ({ mode, onRatingComplete }) => {
   const [existingRating, setExistingRating] = useState(null);
   const [showRubric, setShowRubric] = useState(false);
   const [showControls, setShowControls] = useState(false);
+  const [isRemoved, setIsRemoved] = useState(false);
   
   // Playback state
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const progressInterval = useRef(null);
+
+  useEffect(() => {
+      setIsRemoved(false);
+  }, [track?.trackId]);
 
   useEffect(() => {
     initialize();
@@ -189,7 +194,8 @@ const Player = ({ mode, onRatingComplete }) => {
             { style: { background: '#18181b', border: '1px solid #27272a', color: '#fafafa' } }
         );
         onRatingComplete();
-        await loadPlaylistTrack(true, false);
+        // Do not auto-skip. Keep current track playing.
+        setIsRating(false);
       } else {
         setExistingRating(rating);
         toast.success(
@@ -233,6 +239,19 @@ const Player = ({ mode, onRatingComplete }) => {
              }
         }
     } catch (e) {
+    }
+  };
+
+  const handleRemoveFromPlaylist = async () => {
+    if (!track || !playlistId) return;
+    try {
+        await SpotifyAPI.removeTrackFromPlaylist(playlistId, track.trackId);
+        setIsRemoved(true);
+        toast.success("Removed from playlist", {
+            style: { background: '#18181b', border: '1px solid #27272a', color: '#fafafa' }
+        });
+    } catch (e) {
+        toast.error("Failed to remove");
     }
   };
 
@@ -350,6 +369,21 @@ const Player = ({ mode, onRatingComplete }) => {
                         alt="Album Art" 
                         className="w-auto h-full max-h-full object-contain rounded-2xl shadow-2xl"
                     />
+
+                    {/* Remove Button for Already Rated in Playlist Mode */}
+                    {mode === 'playlist' && existingRating && !isRemoved && (
+                         <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveFromPlaylist();
+                            }}
+                            className="absolute top-2 right-2 p-2 bg-red-500/80 hover:bg-red-500 text-white rounded-full transition-all z-20 shadow-lg opacity-0 group-hover:opacity-100 focus:opacity-100"
+                            title="Remove from playlist"
+                        >
+                            <Trash2 size={16} />
+                        </button>
+                    )}
+
                     {/* Playback Controls Overlay */}
                     <div className={`absolute inset-0 bg-black/50 backdrop-blur-sm transition-all duration-300 flex items-center justify-center rounded-2xl gap-4 md:gap-6
                         ${showControls ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none md:group-hover:opacity-100 md:group-hover:pointer-events-auto'}`}

@@ -1,16 +1,8 @@
 
 > spotify-to-xlsx@1.0.0 dev
-> vite
+> vite --port 3000
 
 
-  VITE v7.3.1  ready in 679 ms
+  VITE v7.3.1  ready in 225 ms
 
-  ➜  Local:   http://127.0.0.1:5173/spotify-to-xlsx/
-5:05:14 PM [vite] (client) hmr update /src/App.jsx, /src/index.css
-5:05:14 PM [vite] (client) hmr update /src/App.jsx, /src/index.css
-5:05:45 PM [vite] (client) hmr update /src/components/Dashboard.jsx, /src/components/Player.jsx, /src/index.css
-5:06:02 PM [vite] (client) hmr update /src/App.jsx, /src/index.css
-5:06:05 PM [vite] (client) hmr update /src/components/Dashboard.jsx, /src/components/Player.jsx, /src/index.css
-5:06:08 PM [vite] (client) hmr update /src/components/Dashboard.jsx, /src/components/Player.jsx, /src/index.css
-5:06:11 PM [vite] (client) hmr update /src/App.jsx, /src/components/Login.jsx, /src/components/Dashboard.jsx, /src/index.css
-5:06:16 PM [vite] (client) hmr update /src/index.css
+  ➜  Local:   http://127.0.0.1:3000/spotify-to-xlsx/
