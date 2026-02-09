@@ -555,7 +555,7 @@ const Player = ({ mode, onRatingComplete }) => {
                     </button>
                     <button
                         onClick={openSheet}
-                        className="flex items-center gap-2 px-4 py-2 bg-green-900/20 hover:bg-green-900/30 text-green-400 hover:text-green-300 border border-green-900/50 rounded-lg transition-colors text-sm flex-1 md:flex-none justify-center"
+                        className="flex items-center gap-2 px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg transition-colors text-sm flex-1 md:flex-none justify-center"
                     >
                         <Table size={16} />
                         Open Sheet
