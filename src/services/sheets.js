@@ -6,7 +6,7 @@ const SheetsAPI = {
   cache: null,
 
   async request(endpoint, options = {}) {
-    const token = Auth.getGoogleToken();
+    const token = await Auth.getGoogleToken();
     const defaultOptions = {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -129,15 +129,30 @@ const SheetsAPI = {
       }
     };
     
-    // Calculate distribution
+    // Calculate distribution and gather artist data
+    let totalRating = 0;
+    const artistCounts = {};
+
     this.cache.forEach(row => {
         if (row.rating) {
             const r = parseFloat(row.rating);
             if (stats.distribution[r] !== undefined) {
                 stats.distribution[r]++;
             }
+            totalRating += r;
+
+            if (row.artist) {
+                artistCounts[row.artist] = (artistCounts[row.artist] || 0) + 1;
+            }
         }
     });
+
+    stats.averageRating = stats.total > 0 ? (totalRating / stats.total).toFixed(2) : 0;
+
+    stats.topArtists = Object.entries(artistCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 5)
+        .map(([name, count]) => ({ name, count }));
 
     return stats;
   },
