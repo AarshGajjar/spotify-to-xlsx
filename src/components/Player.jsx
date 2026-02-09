@@ -13,6 +13,7 @@ const Player = ({ mode, onRatingComplete }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState(null);
   const [playlistId, setPlaylistId] = useState(null);
+  const playlistIdRef = useRef(playlistId);
   const [existingRating, setExistingRating] = useState(null);
   const [showRubric, setShowRubric] = useState(false);
   const [showControls, setShowControls] = useState(false);
@@ -27,6 +28,10 @@ const Player = ({ mode, onRatingComplete }) => {
   useEffect(() => {
       setIsRemoved(false);
   }, [track?.trackId]);
+
+  useEffect(() => {
+    playlistIdRef.current = playlistId;
+  }, [playlistId]);
 
   useEffect(() => {
     initialize();
@@ -53,6 +58,17 @@ const Player = ({ mode, onRatingComplete }) => {
           if (document.hidden) return; // Save API calls
           try {
               const state = await SpotifyAPI.getPlaybackState();
+
+              if (mode === 'playlist') {
+                  const currentPid = playlistIdRef.current;
+                  const isPlayingPlaylist = state?.context?.uri?.includes(currentPid);
+
+                  if (currentPid && state?.is_playing && (!state?.context || !isPlayingPlaylist)) {
+                      setTrack(null);
+                      return;
+                  }
+              }
+
               if (state && state.item) {
                   setProgress(state.progress_ms);
                   setDuration(state.item.duration_ms);
@@ -186,6 +202,7 @@ const Player = ({ mode, onRatingComplete }) => {
         if (playlistId) {
             await SpotifyAPI.removeTrackFromPlaylist(playlistId, track.trackId);
         }
+        setExistingRating(rating);
         toast.success(
             <div className="flex flex-col gap-1">
                 <span className="font-semibold text-green-400">Rated {rating}</span>
