@@ -11,11 +11,12 @@ const Auth = {
   listeners: [],
 
   init() {
+    console.log('[Auth] Initializing...');
     this.restoreTokens();
     this.initGoogleAuth();
     this.handleCallback();
   },
-  
+
   subscribe(callback) {
       this.listeners.push(callback);
       callback(this.getAuthState());
@@ -47,6 +48,7 @@ const Auth = {
   },
 
   restoreTokens() {
+    console.log('[Auth] Restoring tokens...');
     const spotifyToken = localStorage.getItem('spotify_token');
     const spotifyExpiry = localStorage.getItem('spotify_expiry');
     const spotifyRefreshToken = localStorage.getItem('spotify_refresh_token');
@@ -56,6 +58,9 @@ const Auth = {
     if (spotifyToken && spotifyExpiry && Date.now() < parseInt(spotifyExpiry)) {
       this.spotifyAccessToken = spotifyToken;
       this.spotifyTokenExpiry = parseInt(spotifyExpiry);
+      console.log('[Auth] Spotify token restored, expires:', new Date(this.spotifyTokenExpiry).toLocaleString());
+    } else {
+      console.log('[Auth] Spotify token expired or not found');
     }
 
     const googleToken = localStorage.getItem('google_token');
@@ -64,7 +69,9 @@ const Auth = {
     if (googleToken && googleExpiry && Date.now() < parseInt(googleExpiry)) {
       this.googleAccessToken = googleToken;
       this.googleTokenExpiry = parseInt(googleExpiry);
+      console.log('[Auth] Google token restored, expires:', new Date(this.googleTokenExpiry).toLocaleString());
     } else {
+      console.log('[Auth] Google token expired or not found');
       localStorage.removeItem('google_token');
       localStorage.removeItem('google_expiry');
     }
@@ -73,10 +80,22 @@ const Auth = {
 
   initGoogleAuth() {
     if (window.google) {
+      console.log('[Auth] Initializing Google auth client...');
       this.googleTokenClient = window.google.accounts.oauth2.initTokenClient({
         client_id: config.googleClientId,
         scope: config.googleScopes,
         callback: (response) => {
+          console.log('[Auth] Google token callback received:', response.error ? 'error' : 'success');
+          if (response.error) {
+            console.error('[Auth] Google auth error:', response.error, response.error_description);
+            if (this.googleTokenReject) {
+               this.googleTokenReject(new Error(response.error_description || response.error));
+               this.googleTokenResolve = null;
+               this.googleTokenReject = null;
+               this.googleTokenPromise = null;
+            }
+            return;
+          }
           if (response.access_token) {
             this.googleAccessToken = response.access_token;
             const expiresIn = response.expires_in || 3600;
@@ -84,6 +103,7 @@ const Auth = {
 
             localStorage.setItem('google_token', this.googleAccessToken);
             localStorage.setItem('google_expiry', this.googleTokenExpiry);
+            console.log('[Auth] Google token saved, expires in', expiresIn, 'seconds');
             this.notifyAuthChange();
 
             if (this.googleTokenResolve) {
@@ -91,15 +111,29 @@ const Auth = {
                 this.googleTokenResolve = null;
                 this.googleTokenPromise = null;
             }
-          } else if (this.googleTokenReject) {
-             this.googleTokenReject(new Error('Failed to get Google token'));
+          } else {
+            console.error('[Auth] No access_token in Google response');
+            if (this.googleTokenReject) {
+               this.googleTokenReject(new Error('Failed to get Google token'));
+               this.googleTokenResolve = null;
+               this.googleTokenReject = null;
+               this.googleTokenPromise = null;
+            }
+          }
+        },
+        error_callback: (error) => {
+          console.error('[Auth] Google auth error_callback:', error);
+          if (this.googleTokenReject) {
+             this.googleTokenReject(error);
              this.googleTokenResolve = null;
              this.googleTokenReject = null;
              this.googleTokenPromise = null;
           }
-        },
+        }
       });
+      console.log('[Auth] Google auth client initialized');
     } else {
+      console.log('[Auth] Google API not loaded yet, retrying...');
       setTimeout(() => this.initGoogleAuth(), 100);
     }
   },
@@ -210,12 +244,14 @@ const Auth = {
   },
 
   loginGoogle() {
+    console.log('[Auth] loginGoogle called, client:', !!this.googleTokenClient);
     if (this.googleTokenClient) {
       if (this.googleTokenPromise) return this.googleTokenPromise;
 
       this.googleTokenPromise = new Promise((resolve, reject) => {
           this.googleTokenResolve = resolve;
           this.googleTokenReject = reject;
+          console.log('[Auth] Requesting Google access token...');
           this.googleTokenClient.requestAccessToken();
       });
       return this.googleTokenPromise;
@@ -232,7 +268,9 @@ const Auth = {
   },
 
   isGoogleAuthenticated() {
-    return !!(this.googleAccessToken && Date.now() < this.googleTokenExpiry);
+    const isAuth = !!(this.googleAccessToken && Date.now() < this.googleTokenExpiry);
+    console.log('[Auth] isGoogleAuthenticated:', isAuth, 'token exists:', !!this.googleAccessToken, 'expiry:', this.googleTokenExpiry ? new Date(this.googleTokenExpiry).toLocaleString() : 'none');
+    return isAuth;
   },
 
   async getSpotifyToken() {
@@ -246,16 +284,19 @@ const Auth = {
   },
 
   async getGoogleToken() {
+    console.log('[Auth] getGoogleToken called, current token exists:', !!this.googleAccessToken);
     if (!this.googleAccessToken || Date.now() >= this.googleTokenExpiry) {
+      console.log('[Auth] Google token expired or missing, requesting new one...');
       // Try to refresh (login again)
       if (this.googleTokenClient) {
           return await this.loginGoogle();
       }
       throw new Error('Google token expired or not available');
     }
+    console.log('[Auth] Returning existing Google token');
     return this.googleAccessToken;
   },
-  
+
   getAuthState() {
       return {
         spotify: this.isSpotifyAuthenticated(),
@@ -275,9 +316,10 @@ const Auth = {
 
   notifyAuthChange() {
     const state = this.getAuthState();
+    console.log('[Auth] State changed:', state);
     this.listeners.forEach(listener => listener(state));
   },
-  
+
   logout() {
       this.spotifyAccessToken = null;
       this.spotifyTokenExpiry = null;

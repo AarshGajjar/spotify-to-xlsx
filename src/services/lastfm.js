@@ -17,8 +17,10 @@ const LastFM = {
     baseUrl: 'https://ws.audioscrobbler.com/2.0/',
 
     async getTrackInfo(artist, trackName) {
+        console.log('[LastFM] API Key present:', !!config.lastFmApiKey);
+
         if (!config.lastFmApiKey) {
-            console.warn('Last.fm API key is missing');
+            console.warn('[LastFM] API key is missing');
             return [];
         }
 
@@ -35,7 +37,7 @@ const LastFM = {
             });
 
             const url = `${this.baseUrl}?${params.toString()}`;
-            console.log(`Fetching Last.fm tags for: ${artist} - ${cleanedTrackName} (original: ${trackName})`);
+            console.log(`[LastFM] Fetching tags for: ${artist} - ${cleanedTrackName}`);
 
             const response = await fetch(url, {
                 headers: {
@@ -43,24 +45,33 @@ const LastFM = {
                 }
             });
 
+            console.log('[LastFM] Response status:', response.status);
+
             if (!response.ok) {
-                 console.error(`Last.fm API error: ${response.status} ${response.statusText}`);
+                 console.error(`[LastFM] API error: ${response.status} ${response.statusText}`);
                  return [];
             }
 
             const data = await response.json();
+            console.log('[LastFM] Raw response:', JSON.stringify(data).substring(0, 500));
 
             if (data.error) {
-                console.warn('Last.fm API returned error:', data.message);
+                console.warn('[LastFM] API returned error:', data.message);
                 return [];
             }
 
-            if (!data.track || !data.track.toptags) {
-                console.log('No tags found for track:', trackName);
+            if (!data.track) {
+                console.log('[LastFM] No track data found for:', trackName);
+                return [];
+            }
+
+            if (!data.track.toptags) {
+                console.log('[LastFM] No toptags field for track:', trackName);
                 return [];
             }
 
             const tagsData = data.track.toptags.tag;
+            console.log('[LastFM] tagsData type:', typeof tagsData, 'isArray:', Array.isArray(tagsData));
 
             let tags = [];
             if (Array.isArray(tagsData)) {
@@ -69,13 +80,16 @@ const LastFM = {
                 tags = [tagsData];
             }
 
-            return tags
+            const result = tags
                 .map(tag => tag.name)
                 .filter(name => name)
                 .slice(0, 3);
 
+            console.log('[LastFM] Genres found:', result);
+            return result;
+
         } catch (error) {
-            console.error('Last.fm API error:', error);
+            console.error('[LastFM] API error:', error);
             return [];
         }
     }
