@@ -31,7 +31,11 @@ const Player = ({ mode, onRatingComplete }) => {
   useEffect(() => {
       setIsRemoved(false);
       if (track?.artistName && track?.songName) {
-        LastFM.getTrackInfo(track.artistName, track.songName).then(setGenres);
+        console.log(`Getting track info for: ${track.artistName} - ${track.songName}`);
+        LastFM.getTrackInfo(track.artistName, track.songName).then(tags => {
+            console.log('Genres received:', tags);
+            setGenres(tags);
+        });
       } else {
         setGenres([]);
       }
