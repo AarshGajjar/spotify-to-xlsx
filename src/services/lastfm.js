@@ -72,6 +72,8 @@ const LastFM = {
 
             const tagsData = data.track.toptags.tag;
             console.log('[LastFM] tagsData type:', typeof tagsData, 'isArray:', Array.isArray(tagsData));
+            console.log('[LastFM] toptags object:', JSON.stringify(data.track.toptags));
+            console.log('[LastFM] tagsData:', JSON.stringify(tagsData));
 
             let tags = [];
             if (Array.isArray(tagsData)) {
@@ -79,6 +81,8 @@ const LastFM = {
             } else if (tagsData && typeof tagsData === 'object') {
                 tags = [tagsData];
             }
+
+            console.log('[LastFM] parsed tags:', JSON.stringify(tags));
 
             const result = tags
                 .map(tag => tag.name)
