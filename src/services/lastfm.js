@@ -16,7 +16,7 @@ const cleanTrackName = (name) => {
 const LastFM = {
     baseUrl: 'https://ws.audioscrobbler.com/2.0/',
 
-    async getTrackInfo(artist, trackName) {
+    async getTrackTags(artist, trackName) {
         console.log('[LastFM] API Key present:', !!config.lastFmApiKey);
 
         if (!config.lastFmApiKey) {
@@ -28,7 +28,7 @@ const LastFM = {
 
         try {
             const params = new URLSearchParams({
-                method: 'track.getInfo',
+                method: 'track.getTopTags',
                 api_key: config.lastFmApiKey,
                 artist: artist,
                 track: cleanedTrackName,
@@ -60,19 +60,14 @@ const LastFM = {
                 return [];
             }
 
-            if (!data.track) {
-                console.log('[LastFM] No track data found for:', trackName);
+            if (!data.toptags) {
+                console.log('[LastFM] No tags data found for:', cleanedTrackName);
                 return [];
             }
 
-            if (!data.track.toptags) {
-                console.log('[LastFM] No toptags field for track:', trackName);
-                return [];
-            }
-
-            const tagsData = data.track.toptags.tag;
+            const tagsData = data.toptags.tag;
             console.log('[LastFM] tagsData type:', typeof tagsData, 'isArray:', Array.isArray(tagsData));
-            console.log('[LastFM] toptags object:', JSON.stringify(data.track.toptags));
+            console.log('[LastFM] toptags object:', JSON.stringify(data.toptags));
             console.log('[LastFM] tagsData:', JSON.stringify(tagsData));
 
             let tags = [];
@@ -89,7 +84,7 @@ const LastFM = {
                 .filter(name => name)
                 .slice(0, 3);
 
-            console.log('[LastFM] Genres found:', result);
+            console.log('[LastFM] Tags found:', result);
             return result;
 
         } catch (error) {
