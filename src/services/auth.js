@@ -8,6 +8,7 @@ const Auth = {
   googleTokenExpiry: null,
   googleTokenClient: null,
   googleTokenPromise: null,
+  googleRefreshTimer: null,
   listeners: [],
 
   init() {
@@ -15,6 +16,7 @@ const Auth = {
     this.restoreTokens();
     this.initGoogleAuth();
     this.handleCallback();
+    this.startGoogleTokenRefreshTimer();
   },
 
   subscribe(callback) {
@@ -76,6 +78,78 @@ const Auth = {
       localStorage.removeItem('google_expiry');
     }
     this.notifyAuthChange();
+  },
+
+  startGoogleTokenRefreshTimer() {
+    // Clear any existing timer
+    if (this.googleRefreshTimer) {
+      clearInterval(this.googleRefreshTimer);
+    }
+
+    // Check every minute if token needs refresh (refresh 5 minutes before expiry)
+    this.googleRefreshTimer = setInterval(() => {
+      if (this.googleAccessToken && this.googleTokenExpiry) {
+        const timeUntilExpiry = this.googleTokenExpiry - Date.now();
+        const fiveMinutes = 5 * 60 * 1000;
+
+        console.log(`[Auth] Google token check: expires in ${Math.round(timeUntilExpiry / 1000)}s`);
+
+        if (timeUntilExpiry < fiveMinutes && timeUntilExpiry > 0) {
+          console.log('[Auth] Proactively refreshing Google token...');
+          this.refreshGoogleTokenSilently().catch(err => {
+            console.log('[Auth] Silent refresh failed, will retry on next API call:', err.message);
+          });
+        }
+      }
+    }, 60000); // Check every minute
+
+    console.log('[Auth] Google token refresh timer started');
+  },
+
+  async refreshGoogleTokenSilently() {
+    if (!this.googleTokenClient) {
+      throw new Error('Google client not initialized');
+    }
+
+    // Use Google's built-in method to refresh the token
+    return new Promise((resolve, reject) => {
+      const originalCallback = this.googleTokenClient.callback;
+
+      this.googleTokenClient.callback = (response) => {
+        // Restore original callback
+        this.googleTokenClient.callback = originalCallback;
+
+        if (response.error) {
+          console.error('[Auth] Google silent refresh error:', response.error);
+          reject(new Error(response.error));
+          return;
+        }
+
+        if (response.access_token) {
+          this.googleAccessToken = response.access_token;
+          const expiresIn = response.expires_in || 3600;
+          this.googleTokenExpiry = Date.now() + expiresIn * 1000;
+
+          localStorage.setItem('google_token', this.googleAccessToken);
+          localStorage.setItem('google_expiry', this.googleTokenExpiry);
+          console.log('[Auth] Google token refreshed silently, expires in', expiresIn, 'seconds');
+          this.notifyAuthChange();
+          resolve(this.googleAccessToken);
+        } else {
+          reject(new Error('No access token received'));
+        }
+      };
+
+      // Request new token with prompt=none for silent refresh if possible
+      // Note: Google's token client doesn't support prompt param directly,
+      // but calling requestAccessToken when already authorized often works silently
+      try {
+        this.googleTokenClient.requestAccessToken({ prompt: '' });
+      } catch (e) {
+        // Fallback: try without options
+        this.googleTokenClient.requestAccessToken();
+      }
+    });
   },
 
   initGoogleAuth() {
@@ -259,6 +333,37 @@ const Auth = {
     return Promise.reject(new Error('Google client not initialized'));
   },
 
+  async getGoogleToken() {
+    console.log('[Auth] getGoogleToken called, current token exists:', !!this.googleAccessToken);
+    if (!this.googleAccessToken || Date.now() >= this.googleTokenExpiry) {
+      console.log('[Auth] Google token expired or missing, requesting new one...');
+      // Try silent refresh first, then interactive login
+      if (this.googleTokenClient) {
+        try {
+          return await this.refreshGoogleTokenSilently();
+        } catch (silentError) {
+          console.log('[Auth] Silent refresh failed, trying interactive login...');
+          return await this.loginGoogle();
+        }
+      }
+      throw new Error('Google token expired or not available');
+    }
+
+    // Check if token expires soon (within 5 minutes) and refresh proactively
+    const timeUntilExpiry = this.googleTokenExpiry - Date.now();
+    if (timeUntilExpiry < 5 * 60 * 1000) {
+      console.log('[Auth] Google token expires soon, refreshing...');
+      try {
+        return await this.refreshGoogleTokenSilently();
+      } catch (e) {
+        console.log('[Auth] Proactive refresh failed, using existing token');
+      }
+    }
+
+    console.log('[Auth] Returning existing Google token');
+    return this.googleAccessToken;
+  },
+
   isAuthenticated() {
     return this.isSpotifyAuthenticated() && this.isGoogleAuthenticated();
   },
@@ -283,19 +388,6 @@ const Auth = {
     return this.spotifyAccessToken;
   },
 
-  async getGoogleToken() {
-    console.log('[Auth] getGoogleToken called, current token exists:', !!this.googleAccessToken);
-    if (!this.googleAccessToken || Date.now() >= this.googleTokenExpiry) {
-      console.log('[Auth] Google token expired or missing, requesting new one...');
-      // Try to refresh (login again)
-      if (this.googleTokenClient) {
-          return await this.loginGoogle();
-      }
-      throw new Error('Google token expired or not available');
-    }
-    console.log('[Auth] Returning existing Google token');
-    return this.googleAccessToken;
-  },
 
   getAuthState() {
       return {
@@ -326,6 +418,10 @@ const Auth = {
       this.spotifyRefreshToken = null;
       this.googleAccessToken = null;
       this.googleTokenExpiry = null;
+      if (this.googleRefreshTimer) {
+        clearInterval(this.googleRefreshTimer);
+        this.googleRefreshTimer = null;
+      }
       localStorage.clear();
       this.notifyAuthChange();
   }
