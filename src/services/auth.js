@@ -68,14 +68,16 @@ const Auth = {
     const googleToken = localStorage.getItem('google_token');
     const googleExpiry = localStorage.getItem('google_expiry');
 
-    if (googleToken && googleExpiry && Date.now() < parseInt(googleExpiry)) {
+    if (googleToken) {
       this.googleAccessToken = googleToken;
-      this.googleTokenExpiry = parseInt(googleExpiry);
-      console.log('[Auth] Google token restored, expires:', new Date(this.googleTokenExpiry).toLocaleString());
+      this.googleTokenExpiry = googleExpiry ? parseInt(googleExpiry) : 0;
+      if (googleExpiry && Date.now() < parseInt(googleExpiry)) {
+        console.log('[Auth] Google token restored, expires:', new Date(this.googleTokenExpiry).toLocaleString());
+      } else {
+        console.log('[Auth] Google token restored (expired)');
+      }
     } else {
-      console.log('[Auth] Google token expired or not found');
-      localStorage.removeItem('google_token');
-      localStorage.removeItem('google_expiry');
+      console.log('[Auth] Google token not found');
     }
     this.notifyAuthChange();
   },
@@ -333,8 +335,8 @@ const Auth = {
     return Promise.reject(new Error('Google client not initialized'));
   },
 
-  async getGoogleToken() {
-    console.log('[Auth] getGoogleToken called, current token exists:', !!this.googleAccessToken);
+  async getGoogleToken(authOptions = { autoLogin: true }) {
+    console.log('[Auth] getGoogleToken called, current token exists:', !!this.googleAccessToken, 'autoLogin:', authOptions.autoLogin);
     if (!this.googleAccessToken || Date.now() >= this.googleTokenExpiry) {
       console.log('[Auth] Google token expired or missing, requesting new one...');
       // Try silent refresh first, then interactive login
@@ -342,8 +344,15 @@ const Auth = {
         try {
           return await this.refreshGoogleTokenSilently();
         } catch (silentError) {
-          console.log('[Auth] Silent refresh failed, trying interactive login...');
-          return await this.loginGoogle();
+          console.log('[Auth] Silent refresh failed:', silentError.message);
+
+          if (authOptions.autoLogin) {
+             console.log('[Auth] Trying interactive login...');
+             return await this.loginGoogle();
+          } else {
+             console.log('[Auth] Auto login disabled, throwing error');
+             throw new Error('GoogleAuthRequired');
+          }
         }
       }
       throw new Error('Google token expired or not available');
@@ -373,8 +382,9 @@ const Auth = {
   },
 
   isGoogleAuthenticated() {
-    const isAuth = !!(this.googleAccessToken && Date.now() < this.googleTokenExpiry);
-    console.log('[Auth] isGoogleAuthenticated:', isAuth, 'token exists:', !!this.googleAccessToken, 'expiry:', this.googleTokenExpiry ? new Date(this.googleTokenExpiry).toLocaleString() : 'none');
+    // Check if token exists (even if expired) to maintain session
+    const isAuth = !!this.googleAccessToken;
+    // console.log('[Auth] isGoogleAuthenticated:', isAuth, 'token exists:', !!this.googleAccessToken, 'expiry:', this.googleTokenExpiry ? new Date(this.googleTokenExpiry).toLocaleString() : 'none');
     return isAuth;
   },
 

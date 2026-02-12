@@ -6,7 +6,12 @@ const SheetsAPI = {
   cache: null,
 
   async request(endpoint, options = {}) {
-    const token = await Auth.getGoogleToken();
+    const authOptions = options.authOptions || {};
+    // Remove authOptions from options before passing to fetch
+    const fetchOptions = { ...options };
+    delete fetchOptions.authOptions;
+
+    const token = await Auth.getGoogleToken(authOptions);
     const defaultOptions = {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -16,10 +21,10 @@ const SheetsAPI = {
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       ...defaultOptions,
-      ...options,
+      ...fetchOptions,
       headers: {
         ...defaultOptions.headers,
-        ...options.headers,
+        ...fetchOptions.headers,
       },
     });
 
@@ -31,19 +36,13 @@ const SheetsAPI = {
     return response.json();
   },
 
-  async readAllRows() {
-    const range = `${config.sheetId}/values/${config.sheetName || 'Sheet1'}!A2:E`;
-    const data = await this.request(`/${range}`); // Use range directly in path for cleaner URL construction if possible, but standard is /ID/values/Range
-    // Actually the logic in previous file was: `/${CONFIG.SHEET_ID}/values/${encodeURIComponent(range)}`
-    
-    // Correct URL construction
+  async readAllRows(options = {}) {
     const rangeParam = `${config.sheetName || 'Sheet1'}!A2:E`;
-    // We'll just call the previous method's logic
-    return this.readAllRowsInternal(rangeParam);
+    return this.readAllRowsInternal(rangeParam, options);
   },
   
-  async readAllRowsInternal(range) {
-      const data = await this.request(`/${config.sheetId}/values/${encodeURIComponent(range)}`);
+  async readAllRowsInternal(range, options = {}) {
+      const data = await this.request(`/${config.sheetId}/values/${encodeURIComponent(range)}`, options);
       
       const rows = (data.values || []).map((row, index) => ({
           rowNumber: index + 2,
@@ -112,7 +111,7 @@ const SheetsAPI = {
   },
 
   async getStats() {
-    if (!this.cache) await this.readAllRows();
+    if (!this.cache) await this.readAllRows({ authOptions: { autoLogin: false } });
 
     // FIX: Use local date string for comparison to match how it's stored
     const today = this.formatDateTime(new Date()).split(' ')[0]; 
