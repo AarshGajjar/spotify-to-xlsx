@@ -382,8 +382,8 @@ const Auth = {
   },
 
   isGoogleAuthenticated() {
-    // Check if token exists (even if expired) to maintain session
-    const isAuth = !!this.googleAccessToken;
+    // Check if token exists and is not expired
+    const isAuth = !!this.googleAccessToken && Date.now() < this.googleTokenExpiry;
     // console.log('[Auth] isGoogleAuthenticated:', isAuth, 'token exists:', !!this.googleAccessToken, 'expiry:', this.googleTokenExpiry ? new Date(this.googleTokenExpiry).toLocaleString() : 'none');
     return isAuth;
   },
